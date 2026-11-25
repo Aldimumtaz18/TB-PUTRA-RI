@@ -1,0 +1,594 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Hardened Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidJoinCode(code) {
+      return code is string && code.size() >= 6 && code.size() <= 12 && code.matches('^[A-Z0-9]+$');
+    }
+
+    function isValidServerTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidPin(pin) {
+      return pin is string && pin.size() >= 4 && pin.size() <= 6 && pin.matches('^[0-9]+$');
+    }
+
+    function isValidUsername(username) {
+      return username is string && username.size() >= 3 && username.size() <= 40 && username.matches('^[a-zA-Z0-9_.\\-]+$');
+    }
+
+    function isValidPassword(password) {
+      return password is string && password.size() >= 4 && password.size() <= 64;
+    }
+
+    function isValidRoleName(role) {
+      return role is string && role in ['OWNER', 'CASHIER'];
+    }
+
+    function isValidMemberList(uids) {
+      return uids is list &&
+             uids.size() >= 1 &&
+             uids.size() <= 15 &&
+             uids[0] is string &&
+             uids[0].size() >= 1 &&
+             uids[0].size() <= 128;
+    }
+
+    function isValidNonNegativeNumber(v) {
+      return (v is int || v is float) && v >= 0 && v <= 1000000000;
+    }
+
+    function isValidPositiveNumber(v) {
+      return (v is int || v is float) && v > 0 && v <= 100000;
+    }
+
+    function isValidNonNegativeInt(v) {
+      return v is int && v >= 0 && v <= 100000000000;
+    }
+
+    // --- Validation Helpers ---
+    function isValidUserWorkspace(data) {
+      return isValidId(data.userId) &&
+             isValidId(data.defaultStoreId) &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidStoreInvite(data) {
+      return isValidJoinCode(data.joinCode) &&
+             isValidId(data.storeId) &&
+             isValidId(data.ownerUid) &&
+             data.storeName is string && data.storeName.size() >= 1 && data.storeName.size() <= 100 &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidStore(data) {
+      return isValidId(data.ownerUid) &&
+             isValidMemberList(data.memberUids) &&
+             data.ownerUid in data.memberUids &&
+             isValidJoinCode(data.joinCode) &&
+             data.storeName is string && data.storeName.size() >= 1 && data.storeName.size() <= 100 &&
+             data.storeAddress is string && data.storeAddress.size() <= 200 &&
+             data.storePhone is string && data.storePhone.size() <= 40 &&
+             data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 80 &&
+             data.cashierName is string && data.cashierName.size() >= 1 && data.cashierName.size() <= 80 &&
+             isValidUsername(data.ownerUsername) &&
+             isValidPassword(data.ownerPassword) &&
+             isValidUsername(data.cashierUsername) &&
+             isValidPassword(data.cashierPassword) &&
+             (!('ownerPin' in data) || isValidPin(data.ownerPin)) &&
+             (!('cashierPin' in data) || isValidPin(data.cashierPin)) &&
+             (!('employeesInitialized' in data) || data.employeesInitialized is bool) &&
+             (!('categoriesInitialized' in data) || data.categoriesInitialized is bool) &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidEmployee(data) {
+      return isValidId(data.storeId) &&
+             isValidId(data.ownerUid) &&
+             isValidMemberList(data.memberUids) &&
+             data.ownerUid in data.memberUids &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             isValidUsername(data.username) &&
+             isValidPassword(data.password) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 40)) &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidCategory(data) {
+      return isValidId(data.storeId) &&
+             isValidId(data.ownerUid) &&
+             isValidMemberList(data.memberUids) &&
+             data.ownerUid in data.memberUids &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidProduct(data) {
+      return isValidId(data.storeId) &&
+             isValidId(data.ownerUid) &&
+             isValidMemberList(data.memberUids) &&
+             data.ownerUid in data.memberUids &&
+             data.clientNumericId is int && data.clientNumericId > 0 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.baseUnit is string && data.baseUnit.size() >= 1 && data.baseUnit.size() <= 30 &&
+             isValidNonNegativeNumber(data.stockQuantity) &&
+             isValidNonNegativeNumber(data.minStock) &&
+             isValidNonNegativeInt(data.costPricePerBaseUnit) &&
+             isValidNonNegativeInt(data.sellPricePerBaseUnit) &&
+             (!('minSellPricePerBaseUnit' in data) || (isValidNonNegativeInt(data.minSellPricePerBaseUnit) && data.minSellPricePerBaseUnit <= data.sellPricePerBaseUnit)) &&
+             (!('retailUnitName' in data) || data.retailUnitName == null || (data.retailUnitName is string && data.retailUnitName.size() <= 30)) &&
+             isValidPositiveNumber(data.retailConversionFactor) &&
+             isValidNonNegativeInt(data.retailSellPrice) &&
+             (!('minRetailSellPrice' in data) || (isValidNonNegativeInt(data.minRetailSellPrice) && data.minRetailSellPrice <= data.retailSellPrice)) &&
+             (!('retailStockQuantity' in data) || isValidNonNegativeNumber(data.retailStockQuantity)) &&
+             data.updatedAtMillis is int && data.updatedAtMillis > 0 &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function existingRetailStock() {
+      return ('retailStockQuantity' in existing()) ? existing().retailStockQuantity : 0;
+    }
+
+    function isValidTransaction(data) {
+      return isValidId(data.storeId) &&
+             isValidId(data.ownerUid) &&
+             isValidId(data.recordedByUid) &&
+             isValidMemberList(data.memberUids) &&
+             data.ownerUid in data.memberUids &&
+             data.clientNumericId is int && data.clientNumericId > 0 &&
+             data.invoiceNumber is string && data.invoiceNumber.size() >= 1 && data.invoiceNumber.size() <= 60 &&
+             data.timestampMillis is int && data.timestampMillis > 0 &&
+             data.cashierName is string && data.cashierName.size() >= 1 && data.cashierName.size() <= 80 &&
+             isValidRoleName(data.cashierRole) &&
+             data.customerType is string && data.customerType.size() >= 1 && data.customerType.size() <= 40 &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+             data.customerPhone is string && data.customerPhone.size() <= 40 &&
+             data.paymentMethod is string && data.paymentMethod.size() >= 1 && data.paymentMethod.size() <= 40 &&
+             isValidNonNegativeInt(data.subtotal) &&
+             isValidNonNegativeInt(data.discountAmount) &&
+             isValidNonNegativeInt(data.totalAmount) &&
+             isValidNonNegativeInt(data.totalCost) &&
+             isValidNonNegativeInt(data.amountPaid) &&
+             isValidNonNegativeInt(data.changeAmount) &&
+             data.paidStatus is bool &&
+             (!('paidAtMillis' in data) || data.paidAtMillis == null || (data.paidAtMillis is int && data.paidAtMillis > 0)) &&
+             data.itemsJson is string && data.itemsJson.size() >= 2 && data.itemsJson.size() <= 50000 &&
+             (!('paymentsJson' in data) || (data.paymentsJson is string && data.paymentsJson.size() <= 20000)) &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidExpense(data) {
+      return isValidId(data.storeId) &&
+             isValidId(data.ownerUid) &&
+             isValidId(data.recordedByUid) &&
+             isValidMemberList(data.memberUids) &&
+             data.ownerUid in data.memberUids &&
+             data.clientNumericId is int && data.clientNumericId > 0 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.amount is int && data.amount > 0 && data.amount <= 100000000000 &&
+             data.notes is string && data.notes.size() <= 300 &&
+             data.recordedBy is string && data.recordedBy.size() >= 1 && data.recordedBy.size() <= 80 &&
+             isValidRoleName(data.recordedRole) &&
+             data.timestampMillis is int && data.timestampMillis > 0 &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    // --- Collection Rules ---
+
+    // 1. User workspace pointer
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'defaultStoreId', 'displayName', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'defaultStoreId', 'displayName', 'createdAt', 'updatedAt']) &&
+                       isValidUserWorkspace(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidUserWorkspace(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['defaultStoreId', 'displayName', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    // 2. Store join-code lookup (no listing allowed)
+    match /storeInvites/{joinCode} {
+      allow get: if isSignedIn() && isValidJoinCode(joinCode);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidJoinCode(joinCode) &&
+                       incoming().joinCode == joinCode &&
+                       incoming().ownerUid == request.auth.uid &&
+                       incoming().keys().hasAll(['joinCode', 'storeId', 'ownerUid', 'storeName', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['joinCode', 'storeId', 'ownerUid', 'storeName', 'createdAt', 'updatedAt']) &&
+                       isValidStoreInvite(incoming()) &&
+                       exists(/databases/$(database)/documents/stores/$(incoming().storeId)) &&
+                       get(/databases/$(database)/documents/stores/$(incoming().storeId)).data.ownerUid == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+                       isValidJoinCode(joinCode) &&
+                       isValidStoreInvite(incoming()) &&
+                       existing().ownerUid == request.auth.uid &&
+                       incoming().ownerUid == existing().ownerUid &&
+                       incoming().storeId == existing().storeId &&
+                       incoming().joinCode == existing().joinCode &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['storeName', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidJoinCode(joinCode) && existing().ownerUid == request.auth.uid;
+    }
+
+    // 3. Shared store workspace
+    match /stores/{storeId} {
+      allow get: if isSignedIn() && isValidId(storeId) && request.auth.uid in existing().memberUids;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+      allow create: if isSignedIn() &&
+                       isValidId(storeId) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'ownerUid', 'memberUids', 'joinCode', 'storeName', 'storeAddress',
+                         'storePhone', 'ownerName', 'cashierName', 'ownerUsername',
+                         'ownerPassword', 'cashierUsername', 'cashierPassword',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'ownerUid', 'memberUids', 'joinCode', 'storeName', 'storeAddress',
+                         'storePhone', 'ownerName', 'cashierName', 'ownerUsername',
+                         'ownerPassword', 'cashierUsername', 'cashierPassword',
+                         'ownerPin', 'cashierPin', 'employeesInitialized', 'categoriesInitialized',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidStore(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(storeId) &&
+                       isValidStore(incoming()) &&
+                       incoming().ownerUid == existing().ownerUid &&
+                       incoming().createdAt == existing().createdAt && (
+                         // Action 1: Store owner updates store configuration, credentials, or members
+                         (
+                           existing().ownerUid == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'memberUids', 'joinCode', 'storeName', 'storeAddress', 'storePhone',
+                             'ownerName', 'cashierName', 'ownerUsername', 'ownerPassword',
+                             'cashierUsername', 'cashierPassword', 'ownerPin', 'cashierPin',
+                             'employeesInitialized', 'categoriesInitialized', 'updatedAt'
+                           ])
+                         ) ||
+                         // Action 2: Authenticated user joins via verified storeInvite code, appending only their own UID
+                         (
+                           !(request.auth.uid in existing().memberUids) &&
+                           request.auth.uid in incoming().memberUids &&
+                           incoming().memberUids.hasAll(existing().memberUids) &&
+                           incoming().memberUids.size() == existing().memberUids.size() + 1 &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt']) &&
+                           exists(/databases/$(database)/documents/storeInvites/$(existing().joinCode)) &&
+                           get(/databases/$(database)/documents/storeInvites/$(existing().joinCode)).data.storeId == storeId
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(storeId) && existing().ownerUid == request.auth.uid;
+
+      // 3b. Store employees subcollection (owner manages staff login accounts; members read)
+      match /employees/{employeeId} {
+        allow get: if isSignedIn() && isValidId(storeId) && isValidId(employeeId) &&
+                      request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(employeeId) &&
+                         incoming().storeId == storeId &&
+                         incoming().ownerUid == request.auth.uid &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll([
+                           'storeId', 'ownerUid', 'memberUids', 'name', 'username', 'password',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'storeId', 'ownerUid', 'memberUids', 'name', 'username', 'password',
+                           'phone', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidEmployee(incoming()) &&
+                         exists(/databases/$(database)/documents/stores/$(storeId)) &&
+                         get(/databases/$(database)/documents/stores/$(storeId)).data.ownerUid == request.auth.uid;
+
+        allow update: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(employeeId) &&
+                         isValidEmployee(incoming()) &&
+                         incoming().storeId == existing().storeId &&
+                         incoming().ownerUid == existing().ownerUid &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Action 1: Owner edits employee details or syncs memberUids
+                           (
+                             existing().ownerUid == request.auth.uid &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'memberUids', 'name', 'username', 'password', 'phone', 'updatedAt'
+                             ])
+                           ) ||
+                           // Action 2: Authorized store member (kasir/owner) updates employee profile & login credentials
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'name', 'username', 'password', 'phone', 'updatedAt'
+                             ])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(employeeId) &&
+                         existing().ownerUid == request.auth.uid;
+      }
+
+      // 3c. Store product categories subcollection (owner manages CRUD; members read)
+      match /categories/{categoryId} {
+        allow get: if isSignedIn() && isValidId(storeId) && isValidId(categoryId) &&
+                      request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(categoryId) &&
+                         incoming().storeId == storeId &&
+                         incoming().ownerUid == request.auth.uid &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll([
+                           'storeId', 'ownerUid', 'memberUids', 'name', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'storeId', 'ownerUid', 'memberUids', 'name', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidCategory(incoming()) &&
+                         exists(/databases/$(database)/documents/stores/$(storeId)) &&
+                         get(/databases/$(database)/documents/stores/$(storeId)).data.ownerUid == request.auth.uid;
+
+        allow update: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(categoryId) &&
+                         isValidCategory(incoming()) &&
+                         existing().ownerUid == request.auth.uid &&
+                         incoming().storeId == existing().storeId &&
+                         incoming().ownerUid == existing().ownerUid &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'memberUids', 'name', 'updatedAt'
+                         ]);
+
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(categoryId) &&
+                         existing().ownerUid == request.auth.uid;
+      }
+
+      // 4. Store products subcollection (flat evaluation with denormalized memberUids)
+      match /products/{productId} {
+        allow get: if isSignedIn() && isValidId(storeId) && isValidId(productId) &&
+                      request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(productId) &&
+                         incoming().storeId == storeId &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll([
+                           'storeId', 'ownerUid', 'memberUids', 'clientNumericId', 'name',
+                           'category', 'baseUnit', 'stockQuantity', 'minStock',
+                           'costPricePerBaseUnit', 'sellPricePerBaseUnit', 'retailConversionFactor',
+                           'retailSellPrice', 'updatedAtMillis', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'storeId', 'ownerUid', 'memberUids', 'clientNumericId', 'name',
+                           'category', 'baseUnit', 'stockQuantity', 'minStock',
+                           'costPricePerBaseUnit', 'sellPricePerBaseUnit', 'minSellPricePerBaseUnit',
+                           'retailUnitName', 'retailConversionFactor', 'retailSellPrice',
+                           'minRetailSellPrice', 'retailStockQuantity',
+                           'updatedAtMillis', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidProduct(incoming()) &&
+                         exists(/databases/$(database)/documents/stores/$(storeId)) &&
+                         get(/databases/$(database)/documents/stores/$(storeId)).data.ownerUid == incoming().ownerUid &&
+                         request.auth.uid in get(/databases/$(database)/documents/stores/$(storeId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(productId) &&
+                         isValidProduct(incoming()) &&
+                         incoming().storeId == existing().storeId &&
+                         incoming().ownerUid == existing().ownerUid &&
+                         incoming().clientNumericId == existing().clientNumericId &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Action 1: Owner edits product details, restock, or syncs memberUids
+                           (
+                             existing().ownerUid == request.auth.uid &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'memberUids', 'name', 'category', 'baseUnit', 'stockQuantity',
+                               'minStock', 'costPricePerBaseUnit', 'sellPricePerBaseUnit',
+                               'minSellPricePerBaseUnit', 'retailUnitName', 'retailConversionFactor',
+                               'retailSellPrice', 'minRetailSellPrice', 'retailStockQuantity',
+                               'updatedAtMillis', 'updatedAt'
+                             ])
+                           ) ||
+                           // Action 2: Authorized store member (kasir/owner) deducts primary and/or retail stock during POS checkout
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             incoming().stockQuantity <= existing().stockQuantity &&
+                             (!('retailStockQuantity' in incoming()) || incoming().retailStockQuantity <= existingRetailStock()) &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'stockQuantity', 'retailStockQuantity', 'updatedAtMillis', 'updatedAt'
+                             ])
+                           ) ||
+                           // Action 3: Authorized store member repacks base unit stock into separated retail stock pool
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             'retailUnitName' in existing() &&
+                             existing().retailUnitName is string &&
+                             existing().retailUnitName.size() > 0 &&
+                             existing().retailConversionFactor > 0 &&
+                             incoming().stockQuantity < existing().stockQuantity &&
+                             'retailStockQuantity' in incoming() &&
+                             incoming().retailStockQuantity > existingRetailStock() &&
+                             incoming().retailStockQuantity <= existingRetailStock() + ((existing().stockQuantity - incoming().stockQuantity) / existing().retailConversionFactor) + 1.0 &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'stockQuantity', 'retailStockQuantity', 'updatedAtMillis', 'updatedAt'
+                             ])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(productId) &&
+                         existing().ownerUid == request.auth.uid;
+      }
+
+      // 5. Store transactions subcollection
+      match /transactions/{transactionId} {
+        allow get: if isSignedIn() && isValidId(storeId) && isValidId(transactionId) &&
+                      request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(transactionId) &&
+                         incoming().storeId == storeId &&
+                         incoming().recordedByUid == request.auth.uid &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll([
+                           'storeId', 'ownerUid', 'recordedByUid', 'memberUids', 'clientNumericId',
+                           'invoiceNumber', 'timestampMillis', 'cashierName', 'cashierRole',
+                           'customerType', 'customerName', 'customerPhone', 'paymentMethod',
+                           'subtotal', 'discountAmount', 'totalAmount', 'totalCost',
+                           'amountPaid', 'changeAmount', 'paidStatus', 'itemsJson',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'storeId', 'ownerUid', 'recordedByUid', 'memberUids', 'clientNumericId',
+                           'invoiceNumber', 'timestampMillis', 'cashierName', 'cashierRole',
+                           'customerType', 'customerName', 'customerPhone', 'paymentMethod',
+                           'subtotal', 'discountAmount', 'totalAmount', 'totalCost',
+                           'amountPaid', 'changeAmount', 'paidStatus', 'paidAtMillis', 'itemsJson',
+                           'paymentsJson', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidTransaction(incoming()) &&
+                         exists(/databases/$(database)/documents/stores/$(storeId)) &&
+                         get(/databases/$(database)/documents/stores/$(storeId)).data.ownerUid == incoming().ownerUid &&
+                         request.auth.uid in get(/databases/$(database)/documents/stores/$(storeId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(transactionId) &&
+                         isValidTransaction(incoming()) &&
+                         incoming().storeId == existing().storeId &&
+                         incoming().ownerUid == existing().ownerUid &&
+                         incoming().recordedByUid == existing().recordedByUid &&
+                         incoming().clientNumericId == existing().clientNumericId &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Action 1: Authorized store member (owner or cashier) records kasbon installment or full settlement (terminal state lock: cannot un-pay)
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             existing().paidStatus == false &&
+                             incoming().amountPaid >= existing().amountPaid &&
+                             incoming().amountPaid <= existing().totalAmount &&
+                             (incoming().paidStatus == false || incoming().amountPaid == existing().totalAmount) &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'paidStatus', 'paidAtMillis', 'amountPaid', 'paymentMethod', 'paymentsJson', 'updatedAt'
+                             ])
+                           ) ||
+                           // Action 2: Owner syncs memberUids for newly linked device
+                           (
+                             existing().ownerUid == request.auth.uid &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'memberUids', 'updatedAt'
+                             ])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(transactionId) &&
+                         existing().ownerUid == request.auth.uid;
+      }
+
+      // 6. Store expenses subcollection
+      match /expenses/{expenseId} {
+        allow get: if isSignedIn() && isValidId(storeId) && isValidId(expenseId) &&
+                      request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(expenseId) &&
+                         incoming().storeId == storeId &&
+                         incoming().recordedByUid == request.auth.uid &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll([
+                           'storeId', 'ownerUid', 'recordedByUid', 'memberUids', 'clientNumericId',
+                           'title', 'category', 'amount', 'notes', 'recordedBy', 'recordedRole',
+                           'timestampMillis', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'storeId', 'ownerUid', 'recordedByUid', 'memberUids', 'clientNumericId',
+                           'title', 'category', 'amount', 'notes', 'recordedBy', 'recordedRole',
+                           'timestampMillis', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidExpense(incoming()) &&
+                         exists(/databases/$(database)/documents/stores/$(storeId)) &&
+                         get(/databases/$(database)/documents/stores/$(storeId)).data.ownerUid == incoming().ownerUid &&
+                         request.auth.uid in get(/databases/$(database)/documents/stores/$(storeId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(storeId) &&
+                         isValidId(expenseId) &&
+                         isValidExpense(incoming()) &&
+                         existing().ownerUid == request.auth.uid &&
+                         incoming().storeId == existing().storeId &&
+                         incoming().ownerUid == existing().ownerUid &&
+                         incoming().recordedByUid == existing().recordedByUid &&
+                         incoming().clientNumericId == existing().clientNumericId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt']);
+
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(expenseId) &&
+                         existing().ownerUid == request.auth.uid;
+      }
+    }
+  }
+}

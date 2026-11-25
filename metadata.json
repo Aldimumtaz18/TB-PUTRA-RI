@@ -1,0 +1,8 @@
+{
+  "name": "TB PUTRA RI",
+  "description": "Aplikasi POS kasir, manajemen stok multi-satuan, dan pembukuan keuangan khusus Toko Bahan Bangunan TB PUTRA RI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,558 @@
+{
+  "entities": {
+    "UserWorkspace": {
+      "title": "UserWorkspace",
+      "description": "Private per-user workspace pointer tracking which store workspace the authenticated Google account currently accesses.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase Auth UID matching document ID."
+        },
+        "defaultStoreId": {
+          "type": "string",
+          "description": "Active store document ID in /stores/{storeId}."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name from Google Sign-In."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "defaultStoreId", "displayName", "createdAt", "updatedAt"]
+    },
+    "StoreInvite": {
+      "title": "StoreInvite",
+      "description": "Lookup record mapping an owner-generated joinCode to a target store workspace for multi-device linking.",
+      "type": "object",
+      "properties": {
+        "joinCode": {
+          "type": "string",
+          "description": "Uppercase alphanumeric store join code."
+        },
+        "storeId": {
+          "type": "string",
+          "description": "Target store document ID."
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "UID of the store owner."
+        },
+        "storeName": {
+          "type": "string",
+          "description": "Display name of the store."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["joinCode", "storeId", "ownerUid", "storeName", "createdAt", "updatedAt"]
+    },
+    "StoreWorkspace": {
+      "title": "StoreWorkspace",
+      "description": "Shared TB PUTRA RI store settings, PIN configuration, and authorized member UIDs synced across devices.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase UID of the store owner."
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Bounded list (1..15) of Firebase UIDs allowed to access this store."
+        },
+        "joinCode": {
+          "type": "string",
+          "description": "Uppercase alphanumeric join code for linking a second Google account."
+        },
+        "storeName": {
+          "type": "string",
+          "description": "Store name."
+        },
+        "storeAddress": {
+          "type": "string",
+          "description": "Store street address printed on receipts."
+        },
+        "storePhone": {
+          "type": "string",
+          "description": "Store phone/WhatsApp number printed on receipts."
+        },
+        "ownerName": {
+          "type": "string",
+          "description": "Owner display name."
+        },
+        "cashierName": {
+          "type": "string",
+          "description": "Cashier display name."
+        },
+        "ownerUsername": {
+          "type": "string",
+          "description": "Owner login username."
+        },
+        "ownerPassword": {
+          "type": "string",
+          "description": "Owner login password."
+        },
+        "cashierUsername": {
+          "type": "string",
+          "description": "Cashier login username."
+        },
+        "cashierPassword": {
+          "type": "string",
+          "description": "Cashier login password."
+        },
+        "ownerPin": {
+          "type": "string",
+          "description": "Optional legacy 4-6 digit owner PIN."
+        },
+        "cashierPin": {
+          "type": "string",
+          "description": "Optional legacy 4-6 digit cashier PIN."
+        },
+        "employeesInitialized": {
+          "type": "boolean",
+          "description": "Tracks whether default employee account has been seeded into the employees subcollection."
+        },
+        "categoriesInitialized": {
+          "type": "boolean",
+          "description": "Tracks whether default product categories have been seeded into the categories subcollection."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "ownerUid",
+        "memberUids",
+        "joinCode",
+        "storeName",
+        "storeAddress",
+        "storePhone",
+        "ownerName",
+        "cashierName",
+        "ownerUsername",
+        "ownerPassword",
+        "cashierUsername",
+        "cashierPassword",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StoreProduct": {
+      "title": "StoreProduct",
+      "description": "Building material inventory item with primary and optional retail unit conversion.",
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string"
+        },
+        "ownerUid": {
+          "type": "string"
+        },
+        "memberUids": {
+          "type": "array"
+        },
+        "clientNumericId": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "baseUnit": {
+          "type": "string"
+        },
+        "stockQuantity": {
+          "type": "number"
+        },
+        "minStock": {
+          "type": "number"
+        },
+        "costPricePerBaseUnit": {
+          "type": "integer"
+        },
+        "sellPricePerBaseUnit": {
+          "type": "integer",
+          "description": "Standard selling price per primary base unit."
+        },
+        "minSellPricePerBaseUnit": {
+          "type": "integer",
+          "description": "Minimum allowed selling price per primary base unit when bargaining."
+        },
+        "retailUnitName": {
+          "type": "string"
+        },
+        "retailConversionFactor": {
+          "type": "number"
+        },
+        "retailSellPrice": {
+          "type": "integer",
+          "description": "Standard selling price per retail unit."
+        },
+        "minRetailSellPrice": {
+          "type": "integer",
+          "description": "Minimum allowed selling price per retail unit when bargaining."
+        },
+        "retailStockQuantity": {
+          "type": "number",
+          "description": "Separated retail stock pool (e.g. Kg, Meter) converted from primary base units."
+        },
+        "updatedAtMillis": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "storeId",
+        "ownerUid",
+        "memberUids",
+        "clientNumericId",
+        "name",
+        "category",
+        "baseUnit",
+        "stockQuantity",
+        "minStock",
+        "costPricePerBaseUnit",
+        "sellPricePerBaseUnit",
+        "retailConversionFactor",
+        "retailSellPrice",
+        "updatedAtMillis",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StoreTransaction": {
+      "title": "StoreTransaction",
+      "description": "POS sale or tempo/kasbon transaction with itemized JSON and payment state.",
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string"
+        },
+        "ownerUid": {
+          "type": "string"
+        },
+        "recordedByUid": {
+          "type": "string"
+        },
+        "memberUids": {
+          "type": "array"
+        },
+        "clientNumericId": {
+          "type": "integer"
+        },
+        "invoiceNumber": {
+          "type": "string"
+        },
+        "timestampMillis": {
+          "type": "integer"
+        },
+        "cashierName": {
+          "type": "string"
+        },
+        "cashierRole": {
+          "type": "string",
+          "enum": ["OWNER", "CASHIER"]
+        },
+        "customerType": {
+          "type": "string"
+        },
+        "customerName": {
+          "type": "string"
+        },
+        "customerPhone": {
+          "type": "string"
+        },
+        "paymentMethod": {
+          "type": "string"
+        },
+        "subtotal": {
+          "type": "integer"
+        },
+        "discountAmount": {
+          "type": "integer"
+        },
+        "totalAmount": {
+          "type": "integer"
+        },
+        "totalCost": {
+          "type": "integer"
+        },
+        "amountPaid": {
+          "type": "integer"
+        },
+        "changeAmount": {
+          "type": "integer"
+        },
+        "paidStatus": {
+          "type": "boolean"
+        },
+        "paidAtMillis": {
+          "type": "integer"
+        },
+        "itemsJson": {
+          "type": "string"
+        },
+        "paymentsJson": {
+          "type": "string",
+          "description": "Optional JSON array of kasbon DP and installment payment records."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "storeId",
+        "ownerUid",
+        "recordedByUid",
+        "memberUids",
+        "clientNumericId",
+        "invoiceNumber",
+        "timestampMillis",
+        "cashierName",
+        "cashierRole",
+        "customerType",
+        "customerName",
+        "customerPhone",
+        "paymentMethod",
+        "subtotal",
+        "discountAmount",
+        "totalAmount",
+        "totalCost",
+        "amountPaid",
+        "changeAmount",
+        "paidStatus",
+        "itemsJson",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StoreExpense": {
+      "title": "StoreExpense",
+      "description": "Operational or supplier kulakan expense entry.",
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string"
+        },
+        "ownerUid": {
+          "type": "string"
+        },
+        "recordedByUid": {
+          "type": "string"
+        },
+        "memberUids": {
+          "type": "array"
+        },
+        "clientNumericId": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "recordedBy": {
+          "type": "string"
+        },
+        "recordedRole": {
+          "type": "string",
+          "enum": ["OWNER", "CASHIER"]
+        },
+        "timestampMillis": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "storeId",
+        "ownerUid",
+        "recordedByUid",
+        "memberUids",
+        "clientNumericId",
+        "title",
+        "category",
+        "amount",
+        "notes",
+        "recordedBy",
+        "recordedRole",
+        "timestampMillis",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StoreEmployee": {
+      "title": "StoreEmployee",
+      "description": "Employee (karyawan/kasir) login credential managed by the store owner and synced across devices.",
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string"
+        },
+        "ownerUid": {
+          "type": "string"
+        },
+        "memberUids": {
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "storeId",
+        "ownerUid",
+        "memberUids",
+        "name",
+        "username",
+        "password",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StoreCategory": {
+      "title": "StoreCategory",
+      "description": "Customizable building-material product category managed by the store owner and synced in real time.",
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "type": "string"
+        },
+        "ownerUid": {
+          "type": "string"
+        },
+        "memberUids": {
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "storeId",
+        "ownerUid",
+        "memberUids",
+        "name",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserWorkspace" },
+      "description": "Private user workspace pointer to active store."
+    },
+    "/storeInvites/{joinCode}": {
+      "schema": { "$ref": "#/entities/StoreInvite" },
+      "description": "Join code lookup document for linking multi-device accounts."
+    },
+    "/stores/{storeId}": {
+      "schema": { "$ref": "#/entities/StoreWorkspace" },
+      "description": "Shared store settings, credentials, and member authorization list."
+    },
+    "/stores/{storeId}/employees/{employeeId}": {
+      "schema": { "$ref": "#/entities/StoreEmployee" },
+      "description": "Store employee (kasir) login accounts managed by the owner."
+    },
+    "/stores/{storeId}/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/StoreCategory" },
+      "description": "Store product categories managed via CRUD by the owner."
+    },
+    "/stores/{storeId}/products/{productId}": {
+      "schema": { "$ref": "#/entities/StoreProduct" },
+      "description": "Store products synced in real time across authorized devices."
+    },
+    "/stores/{storeId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/StoreTransaction" },
+      "description": "Store sales and kasbon transactions synced in real time."
+    },
+    "/stores/{storeId}/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/StoreExpense" },
+      "description": "Store operational and restock expenses synced in real time."
+    }
+  }
+}
